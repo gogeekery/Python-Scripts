@@ -2,8 +2,6 @@
 
 DOCX Duplicate Finder - (FindDuplicateDocs.py)
 
-![FindDuplicateDocs Preview](docs/DuplicateDocFinder.png)
-
 	This tool will search through a folder and subfolders and mas scan word documents.
 	You can set a threshold for marking documents as duplicates.
 
@@ -11,8 +9,6 @@ DOCX Duplicate Finder - (FindDuplicateDocs.py)
 
 
 File compressor and encryptor (EncryptCompress)
-
-![EncryptCompress Preview](docs/EncryptCompress.png)
 
 	This tool will encrypt a file and compress it. You can set an encryption password.
 	Useful for securely emailing files and for bypassing file type limitations on sharing or emailing platforms.
