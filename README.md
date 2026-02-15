@@ -19,3 +19,9 @@ Image organizer with perceptual hashing and deduplication
 	Scans a directory and all subfolders for image files
 	Finds near-duplicate images using perceptual hashing, organizes by EXIF date
 	Moves duplicates to separate folder, and writes an undo log and JSON report.
+
+
+SharePoint Link Extractor 
+
+	A GUI tool that uses MSAL client‑credentials and Microsoft Graph to crawl a SharePoint site,
+	scanning all URLs inside DOCX and PDF files (including non‑clickable text and embedded hyperlinks).
