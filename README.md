@@ -21,7 +21,7 @@ Image organizer with perceptual hashing and deduplication
 	Moves duplicates to separate folder, and writes an undo log and JSON report.
 
 
-SharePoint Link Extractor 
+SharePoint document crawler and link extractor
 
 	A GUI tool that uses MSAL client‑credentials and Microsoft Graph to crawl a SharePoint site,
 	scanning all URLs inside DOCX and PDF files (including non‑clickable text and embedded hyperlinks).
