@@ -1,7 +1,7 @@
 # https://github.com/gogeekery/Python-Scripts
 # Crawls documents in a SharePoint site to find all links
 
-# pip install msal requests python-docx PyPDF2 pandas
+# pip install msal requests python-docx PyPDF2 pandas cryptography
 
 import io
 import os
@@ -21,10 +21,29 @@ import PyPDF2
 import pandas as pd
 from openpyxl import Workbook
 import xml.etree.ElementTree as ET
+from cryptography.fernet import Fernet
 
-# ---------------- Config ----------------
-CONFIG_PATH = Path.home() / ".sharepoint_link_extractor_config.json"
+KEY_PATH = Path.home() / "sharepoint_link_extractor_config.key"
+CONFIG_PATH = Path.home() / "sharepoint_link_extractor_config.enc"
+
 DEFAULT_SITE = ""
+
+
+def _generate_key():
+    key = Fernet.generate_key()
+    with open(KEY_PATH, "wb") as f:
+        f.write(key)
+    return key
+
+def _load_key():
+    if not KEY_PATH.exists():
+        return _generate_key()
+    with open(KEY_PATH, "rb") as f:
+        return f.read()
+
+fernet = Fernet(_load_key())
+
+
 
 # ---------------- Utilities ----------------
 def dedupe_display_text(text: str) -> str:
@@ -46,7 +65,7 @@ def dedupe_display_text(text: str) -> str:
     return text
 
 # ---------------- GUI / App ----------------
-class SharePointLinkExtractorGUI:
+class LinkExtractorUI:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("SharePoint Link Extractor")
@@ -132,19 +151,6 @@ class SharePointLinkExtractorGUI:
         self.root.mainloop()
 
     # ---------------- Config ----------------
-    def _load_config(self):
-        try:
-            if CONFIG_PATH.exists():
-                with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                self.site_entry.delete(0, "end"); self.site_entry.insert(0, cfg.get("site_url",""))
-                self.tenant_entry.delete(0, "end"); self.tenant_entry.insert(0, cfg.get("tenant_id",""))
-                self.client_entry.delete(0, "end"); self.client_entry.insert(0, cfg.get("client_id",""))
-                self.secret_entry.delete(0, "end"); self.secret_entry.insert(0, cfg.get("client_secret",""))
-                self._log("Loaded saved config.\n")
-        except Exception as e:
-            self._log(f"Failed to load config: {e}\n")
-
     def _save_config(self):
         cfg = {
             "site_url": self.site_entry.get().strip(),
@@ -153,19 +159,54 @@ class SharePointLinkExtractorGUI:
             "client_secret": self.secret_entry.get().strip()
         }
         try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                json.dump(cfg, f)
-            self._log(f"Config saved to {CONFIG_PATH}\n")
-            messagebox.showinfo("Saved", "Configuration saved locally.")
+            data = json.dumps(cfg).encode("utf-8")       # Convert dict to bytes
+            encrypted = fernet.encrypt(data)             # Encrypt bytes
+            with open(CONFIG_PATH, "wb") as f:          # Write encrypted bytes
+                f.write(encrypted)
+            self._log(f"Config saved (encrypted) to {CONFIG_PATH}\n")
+            messagebox.showinfo("Saved", "Configuration saved securely.")
         except Exception as e:
             self._log(f"Failed to save config: {e}\n")
             messagebox.showerror("Error", f"Failed to save config: {e}")
+
+    def _load_config(self):
+        try:
+            if not CONFIG_PATH.exists():
+                self._log(f"No saved config found\n")
+                return None
+            with open(CONFIG_PATH, "rb") as f:
+                encrypted = f.read()
+            decrypted = fernet.decrypt(encrypted)
+            cfg = json.loads(decrypted.decode("utf-8"))
+
+            # Populate the entry fields with decrypted values
+            self.site_entry.delete(0, tk.END)
+            self.site_entry.insert(0, cfg.get("site_url", ""))
+
+            self.tenant_entry.delete(0, tk.END)
+            self.tenant_entry.insert(0, cfg.get("tenant_id", ""))
+
+            self.client_entry.delete(0, tk.END)
+            self.client_entry.insert(0, cfg.get("client_id", ""))
+
+            self.secret_entry.delete(0, tk.END)
+            self.secret_entry.insert(0, cfg.get("client_secret", ""))
+
+            self._log(f"Config loaded successfully from {CONFIG_PATH}\n")
+            return cfg
+        except Exception as e:
+            self._log(f"Failed to load config: {e}\n")
+            messagebox.showerror("Error", f"Failed to load config: {e}")
+            return None
+
 
     def _clear_config(self):
         try:
             if CONFIG_PATH.exists():
                 CONFIG_PATH.unlink()
-            self._log("Saved config cleared.\n")
+            if KEY_PATH.exists():
+                KEY_PATH.unlink()
+            self._log("Encrypted config cleared.\n")
             messagebox.showinfo("Cleared", "Saved configuration cleared.")
         except Exception as e:
             self._log(f"Failed to clear config: {e}\n")
@@ -575,5 +616,5 @@ class SharePointLinkExtractorGUI:
 
 # ---------------- Run ----------------
 if __name__ == "__main__":
-    app = SharePointLinkExtractorGUI()
+    app = LinkExtractorUI()
     app.run()
