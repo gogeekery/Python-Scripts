@@ -1,0 +1,192 @@
+import json
+import os
+import platform
+import subprocess
+import tkinter as tk
+from tkinter import ttk, messagebox
+from PIL import Image, ImageTk
+import qrcode
+
+CONFIG_FILE = "wifi_networks.json"
+
+
+class WifiQRApp(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("WiFi QR Code Generator")
+        self.geometry("720x480")
+        self.resizable(False, False)
+
+        self.networks = self.load_networks()
+        self.qr_image = None
+
+        self.create_styles()
+        self.create_widgets()
+        self.refresh_saved_networks()
+
+    # ---------- Styling ----------
+    def create_styles(self):
+        style = ttk.Style(self)
+        style.theme_use("default")
+        style.configure("Header.TLabel", font=("Segoe UI", 11, "bold"))
+        style.configure("TButton", padding=6)
+
+    # ---------- UI ----------
+    def create_widgets(self):
+        main = ttk.Frame(self, padding=10)
+        main.pack(fill="both", expand=True)
+
+        left = ttk.Frame(main)
+        left.pack(side="left", fill="y", padx=(0, 15))
+
+        right = ttk.Frame(main)
+        right.pack(side="right", fill="both", expand=True)
+
+        # ---- Network Selection ----
+        ttk.Label(left, text="WiFi Network", style="Header.TLabel").pack(anchor="w")
+
+        ttk.Button(left, text="Scan Nearby SSIDs", command=self.scan_networks).pack(fill="x", pady=5)
+
+        self.ssid_var = tk.StringVar()
+        self.ssid_combo = ttk.Combobox(left, textvariable=self.ssid_var)
+        self.ssid_combo.pack(fill="x", pady=5)
+
+        ttk.Label(left, text="Password").pack(anchor="w")
+        self.password_entry = ttk.Entry(left, show="*")
+        self.password_entry.pack(fill="x", pady=5)
+
+        ttk.Label(left, text="Security").pack(anchor="w")
+        self.security_var = tk.StringVar(value="WPA")
+        ttk.Combobox(
+            left,
+            textvariable=self.security_var,
+            values=["WPA", "WEP", "nopass"],
+            state="readonly"
+        ).pack(fill="x", pady=5)
+
+        self.hidden_var = tk.BooleanVar()
+        ttk.Checkbutton(left, text="Hidden network", variable=self.hidden_var).pack(anchor="w", pady=5)
+
+        ttk.Separator(left).pack(fill="x", pady=10)
+
+        ttk.Label(left, text="Saved Networks", style="Header.TLabel").pack(anchor="w")
+        self.saved_combo = ttk.Combobox(left, state="readonly")
+        self.saved_combo.pack(fill="x", pady=5)
+        self.saved_combo.bind("<<ComboboxSelected>>", self.load_saved_network)
+
+        ttk.Button(left, text="Save Network", command=self.save_network).pack(fill="x", pady=5)
+
+        ttk.Button(left, text="Generate QR Preview", command=self.generate_qr_preview).pack(fill="x", pady=10)
+
+        ttk.Button(left, text="Save QR to File", command=self.save_qr).pack(fill="x")
+
+        # ---- QR Preview ----
+        ttk.Label(right, text="QR Code Preview", style="Header.TLabel").pack(anchor="w")
+        self.preview_label = ttk.Label(right)
+        self.preview_label.pack(expand=True, pady=10)
+
+    # ---------- Config ----------
+    def load_networks(self):
+        if not os.path.exists(CONFIG_FILE):
+            return {}
+        with open(CONFIG_FILE, "r") as f:
+            return json.load(f)
+
+    def save_networks(self):
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(self.networks, f, indent=2)
+
+    def refresh_saved_networks(self):
+        self.saved_combo["values"] = list(self.networks.keys())
+
+    # ---------- SSID Scan ----------
+    def scan_networks(self):
+        try:
+            system = platform.system()
+            ssids = set()
+
+            if system == "Windows":
+                output = subprocess.check_output(["netsh", "wlan", "show", "networks"], text=True)
+                for line in output.splitlines():
+                    if "SSID" in line:
+                        ssids.add(line.split(":", 1)[1].strip())
+
+            elif system == "Darwin":
+                output = subprocess.check_output(
+                    ["/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport", "-s"],
+                    text=True
+                )
+                for line in output.splitlines()[1:]:
+                    ssids.add(line.split()[0])
+
+            else:  # Linux
+                output = subprocess.check_output(["nmcli", "-t", "-f", "SSID", "dev", "wifi"], text=True)
+                ssids.update(filter(None, output.splitlines()))
+
+            self.ssid_combo["values"] = sorted(ssids)
+            messagebox.showinfo("Scan complete", f"Found {len(ssids)} networks")
+
+        except Exception as e:
+            messagebox.showerror("Scan failed (Windows requires location data)", str(e))
+
+    # ---------- Saved Networks ----------
+    def load_saved_network(self, event=None):
+        name = self.saved_combo.get()
+        net = self.networks.get(name)
+        if not net:
+            return
+
+        self.ssid_var.set(net["ssid"])
+        self.password_entry.delete(0, tk.END)
+        self.password_entry.insert(0, net["password"])
+        self.security_var.set(net["security"])
+        self.hidden_var.set(net["hidden"])
+
+    def save_network(self):
+        ssid = self.ssid_var.get().strip()
+        if not ssid:
+            messagebox.showerror("Error", "SSID is required")
+            return
+
+        self.networks[ssid] = {
+            "ssid": ssid,
+            "password": self.password_entry.get(),
+            "security": self.security_var.get(),
+            "hidden": self.hidden_var.get()
+        }
+
+        self.save_networks()
+        self.refresh_saved_networks()
+        self.saved_combo.set(ssid)
+
+        messagebox.showinfo("Saved", f"'{ssid}' saved")
+
+    # ---------- QR ----------
+    def build_wifi_string(self):
+        hidden = "true" if self.hidden_var.get() else "false"
+        return f"WIFI:T:{self.security_var.get()};S:{self.ssid_var.get()};P:{self.password_entry.get()};H:{hidden};;"
+
+    def generate_qr_preview(self):
+        if not self.ssid_var.get():
+            messagebox.showerror("Error", "SSID is required")
+            return
+
+        qr = qrcode.make(self.build_wifi_string())
+        qr = qr.resize((250, 250))
+
+        self.qr_image = ImageTk.PhotoImage(qr)
+        self.preview_label.config(image=self.qr_image)
+
+    def save_qr(self):
+        if not self.qr_image:
+            messagebox.showerror("Error", "Generate a QR preview first")
+            return
+
+        filename = f"{self.ssid_var.get()}_wifi_qr.png".replace(" ", "_")
+        qrcode.make(self.build_wifi_string()).save(filename)
+        messagebox.showinfo("Saved", f"QR code saved as {filename}")
+
+
+if __name__ == "__main__":
+    app = WifiQRApp()
+    app.mainloop()
