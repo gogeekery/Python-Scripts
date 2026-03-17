@@ -31,3 +31,8 @@ WiFi QR Code Generator
 
 	A cross-platform GUI app that scans nearby WiFi networks (Windows, macOS, Linux), and generates QR codes for easy device connection.
 	It includes QR preview, export functionality, security type selection (WPA/WEP/nopass), hidden network support, and persistent saved network management.
+
+
+Broken Link Finder
+	GUI app that crawls websites and local HTML files to find broken HTTP and file links, using browser‑like headers with a HEAD > GET fallback.
+	Export results to CSV or JSON, control crawl depth and domain scope, and review findings in a responsive, searchable results table.
