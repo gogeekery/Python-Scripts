@@ -34,5 +34,6 @@ WiFi QR Code Generator
 
 
 Broken Link Finder
+
 	GUI app that crawls websites and local HTML files to find broken HTTP and file links, using browser‑like headers with a HEAD > GET fallback.
 	Export results to CSV or JSON, control crawl depth and domain scope, and review findings in a responsive, searchable results table.
