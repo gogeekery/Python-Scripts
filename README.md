@@ -27,6 +27,12 @@ SharePoint document crawler and link extractor
 	scanning all URLs inside DOCX and PDF files (including non‑clickable text and embedded hyperlinks).
 
 
+Meraki IP Finder / IP Lookup Tool
+
+	A GUI tool that uses the Meraki Dashboard API to quickly resolve client IP addresses to their corresponding networks.
+	Includes device metadata such as network name, device/hostname, MAC address, and last seen timestamp.
+
+
 WiFi QR Code Generator
 
 	A cross-platform GUI app that scans nearby WiFi networks (Windows, macOS, Linux), and generates QR codes for easy device connection.
